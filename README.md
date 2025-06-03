@@ -23,25 +23,49 @@ curl -sL https://raw.githubusercontent.com/abhi0raj/focus-gum/main/focus-gum.sh 
 chmod +x ~/bin/focus-gum.sh
 echo 'alias focus="$HOME/bin/focus-gum.sh"' >> ~/.zshrc
 source ~/.zshrc
-Usage
+```
 
+---
+
+## Usage
+
+```bash
 focus start <tag>   # quick start (e.g. focus start writing)
 focus summary       # today’s totals + streak
 focus               # interactive menu
-Config
+```
 
-Edit the top of focus-gum.sh to tweak:
+**Example session**
 
+```text
+▶️  Focusing: protein-design  (2025-06-04 10:00:00)
+Press Ctrl+C when done…
+^C✅  Logged 50 min for: protein-design
+```
+
+---
+
+## Config
+
+Edit the top of `focus-gum.sh` to tweak:
+
+```bash
 CSV="$HOME/focus_log.csv"   # change log location
 DAILY_GOAL=120              # minutes required for streak
-Roadmap
+```
 
- Pomodoro countdown overlay
- macOS Do-Not-Disturb toggle on session start
- Weekly Markdown report generator
- Homebrew formula for brew install focus-gum
+---
+
+## Roadmap
+
+- [ ] Pomodoro countdown overlay
+- [ ] macOS Do-Not-Disturb toggle on session start
+- [ ] Weekly Markdown report generator
+- [ ] Homebrew formula for `brew install focus-gum`
+
 PRs welcome. 🎉
 
-License
+---
 
+## License
 MIT © Abhi Rajendran
