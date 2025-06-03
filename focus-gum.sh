@@ -50,7 +50,10 @@ PY
 ########################################
 run_focus() {
   local TAG="$1"
-  [[ -n "$TAG" ]] || TAG=$(gum input --placeholder "e.g. protein-design, writing")
+  if [[ -z "$TAG" ]]; then
+    gum format --alignment left <<< "## What will you focus on?\n*(e.g. protein-design, writing)*"
+    TAG=$(gum input --placeholder "protein-design" --prompt "➤ ")
+  fi
 
   local START_TIME START_EPOCH
   START_TIME=$(date +"%Y-%m-%d %H:%M:%S")
@@ -80,6 +83,7 @@ run_focus() {
 case "$1" in
   start)  shift; run_focus "$*"; exit ;;
   summary)       print_summary;        exit ;;
+  *) clear ;;
 esac
 
 ########################################
@@ -87,6 +91,7 @@ esac
 ########################################
 while true; do
   CHOICE=$(gum choose "🧠 Start Focus" "📊 Summary" "❌ Quit")
+  clear
   case "$CHOICE" in
     "🧠 Start Focus") run_focus ;;
     "📊 Summary")     print_summary ;;
