@@ -51,13 +51,7 @@ PY
 run_focus() {
   local TAG="$1"
   if [[ -z "$TAG" ]]; then
-    # Header: real newlines, no unsupported flags
-    gum format <<'EOF'
-## **What will you focus on?**
-*(e.g. protein-design, writing)*
-EOF
-    # Single clean input line
-    TAG=$(gum input --placeholder "protein-design" --prompt "➤ ")
+    TAG=$(gum input --placeholder "protein-design" --prompt "What will you focus on? ➤ ")
   fi
 
   local START_TIME START_EPOCH
