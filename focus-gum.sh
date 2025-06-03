@@ -51,7 +51,7 @@ PY
 run_focus() {
   local TAG="$1"
   if [[ -z "$TAG" ]]; then
-    gum format --alignment left <<< "## What will you focus on?\n*(e.g. protein-design, writing)*"
+    gum format <<< "## What will you focus on?\n*(e.g. protein-design, writing)*"
     TAG=$(gum input --placeholder "protein-design" --prompt "➤ ")
   fi
 
