@@ -14,7 +14,7 @@ CSV=${FOCUS_GUM_CSV:-"$HOME/focus_log.csv"}   # allow override via env
 DAILY_GOAL=${FOCUS_GUM_GOAL:-120}             # minutes for streak
 
 mkdir -p "$(dirname "$CSV")"
-[[ -f "$CSV" ]] || echo "date,start_time,end_time,duration_minutes,tag" >"$CSV"
+[[ -f "$CSV" ]] || echo "date,start_time,end_time,duration_minutes,tag,description" >"$CSV"
 
 gum_style_header() {
   # Pretty two-line header without alternate screen
@@ -67,10 +67,11 @@ show_sessions() {
   if [[ $total_minutes -gt 0 ]]; then
     # Create temporary file with today's data
     local temp_table="/tmp/focus_today_$$.csv"
-    echo "Start Time,End Time,Duration (min),Tag" > "$temp_table"
+    echo "Start Time,End Time,Duration (min),Tag,Description" > "$temp_table"
     awk -F, -v d="$today" 'NR>1 && $1==d {
       gsub(d" ", "", $2); gsub(d" ", "", $3);
-      printf "%s,%s,%d,%s\n", $2, $3, $4, $5
+      desc = ($6 ? $6 : "");
+      printf "%s,%s,%d,%s,%s\n", $2, $3, $4, $5, desc
     }' "$CSV" >> "$temp_table"
     
     gum table --file "$temp_table" \
@@ -145,7 +146,12 @@ run_focus() {
   finish(){
     local end_time=$(date +"%Y-%m-%d %H:%M:%S")
     local duration=$(( ( $(date +%s) - start_epoch + 59 ) / 60 )) # round-up
-    printf "%s,%s,%s,%d,%s\n" "${start_time%% *}" "$start_time" "$end_time" "$duration" "$tag" >>"$CSV"
+    
+    # Prompt for description
+    gum style --foreground 213 "📝 Add a description for this session:"
+    local description=$(gum write --placeholder "What did you accomplish?" --header "Session Description" --height 3 --width 60)
+    
+    printf "%s,%s,%s,%d,%s,%s\n" "${start_time%% *}" "$start_time" "$end_time" "$duration" "$tag" "$description" >>"$CSV"
     gum style --foreground 35 "✅ Logged $duration min for: $tag"; exit 0;
   }
 
