@@ -97,7 +97,7 @@ while true; do
     --header "🧠 Focus Session Menu" \
     --cursor "▶ " \
     --cursor-prefix "" \
-    --unselected-prefix " ○ " \
+    --unselected-prefix "• " \
     --selected-prefix "✓ " \
     --height 5 \
     --cursor.foreground="212" \
