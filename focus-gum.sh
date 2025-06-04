@@ -113,7 +113,9 @@ CSV = "$CSV"; GOAL = $DAILY_GOAL
 mins = {}
 with open(CSV) as f:
     for row in csv.DictReader(f):
-        mins[row['date']] = mins.get(row['date'], 0) + int(row['duration_minutes'])
+        val = row.get('duration_minutes')
+        if val and val.isdigit():
+            mins[row['date']] = mins.get(row['date'], 0) + int(val)
 
 today = datetime.date.today(); streak=0
 while str(today) in mins and mins[str(today)] >= GOAL:
