@@ -67,11 +67,10 @@ show_sessions() {
   if [[ $total_minutes -gt 0 ]]; then
     # Create temporary file with today's data
     local temp_table="/tmp/focus_today_$$.csv"
-    echo "Start Time,End Time,Duration (min),Tag,Description" > "$temp_table"
+    echo "Start Time,End Time,Duration (min),Tag" > "$temp_table"
     awk -F, -v d="$today" 'NR>1 && $1==d {
       gsub(d" ", "", $2); gsub(d" ", "", $3);
-      desc = ($6 ? $6 : "");
-      printf "%s,%s,%d,%s,%s\n", $2, $3, $4, $5, desc
+      printf "%s,%s,%d,%s\n", $2, $3, $4, $5
     }' "$CSV" >> "$temp_table"
     
     gum table --file "$temp_table" \
@@ -149,7 +148,7 @@ run_focus() {
     
     # Prompt for description
     gum style --foreground 213 "📝 Add a description for this session:"
-    local description=$(gum write --placeholder "What did you accomplish?" --header "Session Description" --height 3 --width 60)
+    local description=$(gum write --placeholder "Quickly reflect: What went well? What distracted you? One thing to improve next time." --header "Session Description" --height 3 --width 60)
     
     printf "%s,%s,%s,%d,%s,%s\n" "${start_time%% *}" "$start_time" "$end_time" "$duration" "$tag" "$description" >>"$CSV"
     gum style --foreground 35 "✅ Logged $duration min for: $tag"; exit 0;
