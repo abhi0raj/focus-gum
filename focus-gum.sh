@@ -79,7 +79,7 @@ run_focus() {
     # Get focus tag if not provided
     if [[ -z "$tag" ]]; then
         echo "What will you focus on?"
-        tag=$(gum input --placeholder "e.g. protein-design, writing, etc.")
+        tag=$(gum input --placeholder "e.g. protein-design, writing")
         [[ -n "$tag" ]] || { echo "Focus tag required"; return 1; }
     fi
     
