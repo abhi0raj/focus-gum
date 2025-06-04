@@ -131,7 +131,7 @@ run_focus() {
   local tag=$1
   if [[ -z $tag ]]; then
     gum_style_header "What will you focus on?" "(e.g. protein-design, writing)"
-    tag=$(gum input --placeholder "protein-design" --prompt "➤ " --width 40)
+    tag=$(gum input --placeholder "coding" --prompt "➤ " --width 40)
     [[ -n $tag ]] || { gum style --foreground 1 "✖ No tag given"; return; }
   fi
 
@@ -166,13 +166,11 @@ esac
 while true; do
   choice=$(gum choose \
     --header "🧠 Focus Session Menu" \
-    --cursor "▶ " \
-    --cursor-prefix "" \
-    --unselected-prefix "• " \
-    --selected-prefix "✓ " \
+    --cursor "➤ " \
     --height 7 \
     --cursor.foreground="212" \
     --header.foreground="213" \
+    --header.align="left" \
     --header.background="" \
     "start focus" "summary" "sessions" "open csv" "quit")
   case $choice in
