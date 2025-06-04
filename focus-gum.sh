@@ -47,7 +47,8 @@ PY
 run_focus() {
     local TAG="$1"
     if [[ -z "$TAG" ]]; then
-        TAG=$(gum input --placeholder "e.g. protein-design, writing" --prompt "➤ What will you focus on? ")
+        echo "What will you focus on?"
+        TAG=$(gum input --placeholder "e.g. protein-design, writing")
     fi
     
     local START_TIME START_EPOCH
