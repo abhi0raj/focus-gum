@@ -52,11 +52,9 @@ run_focus() {
   local TAG="$1"
   if [[ -z "$TAG" ]]; then
     # Header: real newlines, no unsupported flags
-    gum format <<'EOF'
-## **What will you focus on?**
-EOF
-    # Single clean input line
-    TAG=$(gum input --placeholder "protein-design" --prompt "➤ ")
+  gum style --foreground 212 --bold "What will you focus on?"
+  echo "(e.g. protein-design, writing)"
+  TAG=$(gum input --placeholder "protein-design" --prompt "➤ ")
   fi
 
   local START_TIME START_EPOCH
