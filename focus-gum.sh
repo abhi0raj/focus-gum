@@ -93,11 +93,11 @@ esac
 
 # ── Interactive Menu ───────────────────────────────────────────
 while true; do
-  choice=$(gum choose --cursor "➜" "🧠 Start Focus" "📊 Summary" "❌ Quit")
+  choice=$(gum choose --cursor "➤" "• Start Focus" "• Summary" "• Quit")
   case $choice in
-    "🧠 Start Focus") run_focus "" ;;
-    "📊 Summary")     print_summary ;;
-    "❌ Quit")        exit 0 ;;
+    "• Start Focus") run_focus "" ;;
+    "• Summary")     print_summary ;;
+    "• Quit")        exit 0 ;;
   esac
   echo                # spacer after each cycle
 done
