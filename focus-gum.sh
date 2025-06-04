@@ -51,12 +51,20 @@ print_summary() {
   fi
 
   echo
+  calculate_streak
+}
 
-  # Display today's sessions as a table
+show_sessions() {
+  local today
+  today=$(date +%Y-%m-%d)
+  
+  gum_style_header "📋  Today's Focus Sessions" "$today"
+  
+  # Calculate total minutes for today
+  local total_minutes
+  total_minutes=$(awk -F, -v d="$today" 'NR>1 && $1==d {tot+=$4} END {print tot+0}' "$CSV")
+  
   if [[ $total_minutes -gt 0 ]]; then
-    gum style --foreground 213 --bold "Today's Focus Sessions:"
-    echo
-    
     # Create temporary file with today's data
     local temp_table="/tmp/focus_today_$$.csv"
     echo "Start Time,End Time,Duration (min),Tag" > "$temp_table"
@@ -74,9 +82,10 @@ print_summary() {
     
     rm -f "$temp_table"
     echo
+  else
+    gum style --foreground 8 "No focus sessions recorded for today"
+    echo
   fi
-
-  calculate_streak
 }
 
 calculate_streak() {
@@ -129,6 +138,7 @@ run_focus() {
 case "${1:-}" in
   start)   shift; run_focus "$*"; exit ;;
   summary)           print_summary;   exit ;;
+  sessions)          show_sessions;   exit ;;
   "")               ;;  # fallthrough to menu
   *) gum style --foreground 1 "Unknown command: $1"; exit 1 ;;
 esac
@@ -141,15 +151,16 @@ while true; do
     --cursor-prefix "" \
     --unselected-prefix "• " \
     --selected-prefix "✓ " \
-    --height 5 \
+    --height 6 \
     --cursor.foreground="212" \
     --header.foreground="213" \
     --header.background="" \
-    "Start Focus" "Summary" "Quit")
+    "start focus" "summary" "sessions" "quit")
   case $choice in
-    "Start Focus") run_focus "" ;;
-    "Summary")     print_summary ;;
-    "Quit")        exit 0 ;;
+    "start focus") run_focus "" ;;
+    "summary")     print_summary ;;
+    "sessions")    show_sessions ;;
+    "quit")        exit 0 ;;
   esac
   echo                # spacer after each cycle
 done
