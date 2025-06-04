@@ -151,8 +151,9 @@ run_focus() {
     # Prompt for description
     gum style --foreground 213 "📝 Add a description for this session:"
     local description=$(gum write --placeholder "Quickly reflect: What went well? What distracted you? One thing to improve next time." --header "Session Description" --height 3 --width 60)
-    
-    printf "%s,%s,%s,%d,%s,%s\n" "${start_time%% *}" "$start_time" "$end_time" "$duration" "$tag" "$description" >>"$CSV"
+    # Escape internal double quotes for CSV
+    local description_escaped=${description//\"/\"\"}
+    printf "%s,%s,%s,%d,%s,\"%s\"\n" "${start_time%% *}" "$start_time" "$end_time" "$duration" "$tag" "$description_escaped" >>"$CSV"
     gum style --foreground 35 "✅ Logged $duration min for: $tag"; exit 0;
   }
 
