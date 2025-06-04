@@ -30,9 +30,49 @@ print_summary() {
 
   gum_style_header "🧠  Focus Summary for $today"
 
-  awk -F, -v d="$today" 'NR>1 && $1==d {a[$5]+=$4; tot+=$4} END {
+  # Show breakdown by tag and calculate total
+  local summary_output total_minutes
+  summary_output=$(awk -F, -v d="$today" 'NR>1 && $1==d {a[$5]+=$4; tot+=$4} END {
        for (t in a) printf "- %s: %d min\n", t, a[t];
-       printf "\nTotal: %d min\n", tot }' "$CSV" | gum format
+       printf "%d", tot }' "$CSV")
+  
+  total_minutes=$(echo "$summary_output" | tail -1)
+  echo "$summary_output" | head -n -1 | gum format
+  
+  # Highlight total in green
+  if [[ $total_minutes -gt 0 ]]; then
+    echo
+    gum style --foreground 35 --bold "Total: $total_minutes min"
+  else
+    echo
+    gum style --foreground 8 "Total: 0 min"
+  fi
+
+  echo
+
+  # Display today's sessions as a table
+  if [[ $total_minutes -gt 0 ]]; then
+    gum style --foreground 213 --bold "Today's Focus Sessions:"
+    echo
+    
+    # Create temporary file with today's data
+    local temp_table="/tmp/focus_today_$$.csv"
+    echo "Start Time,End Time,Duration (min),Tag" > "$temp_table"
+    awk -F, -v d="$today" 'NR>1 && $1==d {
+      gsub(d" ", "", $2); gsub(d" ", "", $3);
+      printf "%s,%s,%d,%s\n", $2, $3, $4, $5
+    }' "$CSV" >> "$temp_table"
+    
+    gum table --file "$temp_table" \
+      --border "rounded" \
+      --border.foreground "213" \
+      --header.foreground "213" \
+      --cell.foreground "254" \
+      --print
+    
+    rm -f "$temp_table"
+    echo
+  fi
 
   calculate_streak
 }
