@@ -88,6 +88,27 @@ show_sessions() {
   fi
 }
 
+open_csv() {
+  gum_style_header "📄  Opening CSV file" "$CSV"
+  
+  if [[ ! -f "$CSV" ]]; then
+    gum style --foreground 1 "✖ CSV file not found: $CSV"
+    return 1
+  fi
+  
+  # Use 'open' on macOS, otherwise try common editors
+  if command -v open >/dev/null 2>&1; then
+    open "$CSV"
+    gum style --foreground 35 "✅ Opened CSV file with default application"
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$CSV"
+    gum style --foreground 35 "✅ Opened CSV file with default application"
+  else
+    # Fallback to less for viewing
+    less "$CSV"
+  fi
+}
+
 calculate_streak() {
 python3 - <<PY
 import csv, datetime, sys
@@ -139,6 +160,7 @@ case "${1:-}" in
   start)   shift; run_focus "$*"; exit ;;
   summary)           print_summary;   exit ;;
   sessions)          show_sessions;   exit ;;
+  open_csv)          open_csv;        exit ;;
   "")               ;;  # fallthrough to menu
   *) gum style --foreground 1 "Unknown command: $1"; exit 1 ;;
 esac
@@ -151,15 +173,16 @@ while true; do
     --cursor-prefix "" \
     --unselected-prefix "• " \
     --selected-prefix "✓ " \
-    --height 6 \
+    --height 7 \
     --cursor.foreground="212" \
     --header.foreground="213" \
     --header.background="" \
-    "start focus" "summary" "sessions" "quit")
+    "start focus" "summary" "sessions" "open_csv" "quit")
   case $choice in
     "start focus") run_focus "" ;;
     "summary")     print_summary ;;
     "sessions")    show_sessions ;;
+    "open_csv")    open_csv ;;
     "quit")        exit 0 ;;
   esac
   echo                # spacer after each cycle
