@@ -96,15 +96,12 @@ open_csv() {
     return 1
   fi
   
-  # Use 'open' on macOS, otherwise try common editors
+  # Open with TextEdit on macOS
   if command -v open >/dev/null 2>&1; then
-    open "$CSV"
-    gum style --foreground 35 "✅ Opened CSV file with default application"
-  elif command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "$CSV"
-    gum style --foreground 35 "✅ Opened CSV file with default application"
+    open -a "TextEdit" "$CSV"
+    gum style --foreground 35 "✅ Opened CSV file in TextEdit"
   else
-    # Fallback to less for viewing
+    # Fallback to less for viewing on other systems
     less "$CSV"
   fi
 }
@@ -177,12 +174,12 @@ while true; do
     --cursor.foreground="212" \
     --header.foreground="213" \
     --header.background="" \
-    "start focus" "summary" "sessions" "open_csv" "quit")
+    "start focus" "summary" "sessions" "open csv" "quit")
   case $choice in
     "start focus") run_focus "" ;;
     "summary")     print_summary ;;
     "sessions")    show_sessions ;;
-    "open_csv")    open_csv ;;
+    "open csv")    open_csv ;;
     "quit")        exit 0 ;;
   esac
   echo                # spacer after each cycle
