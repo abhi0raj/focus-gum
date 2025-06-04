@@ -51,7 +51,12 @@ PY
 run_focus() {
   local TAG="$1"
   if [[ -z "$TAG" ]]; then
-    TAG=$(gum input --placeholder "protein-design" --prompt "What will you focus on? ➤ ")
+    # Header: real newlines, no unsupported flags
+    gum format <<'EOF'
+## **What will you focus on?**
+EOF
+    # Single clean input line
+    TAG=$(gum input --placeholder "protein-design" --prompt "➤ ")
   fi
 
   local START_TIME START_EPOCH
@@ -80,9 +85,10 @@ run_focus() {
 # ── CLI Dispatcher ────────────────────
 ########################################
 case "$1" in
-  start)  shift; run_focus "$*"; exit ;;
-  summary)       print_summary;        exit ;;
-  *) clear ;;
+  start)    shift; run_focus "$*"; exit ;;
+  summary)  print_summary; exit ;;
+  "")       ;;  # no args → fall through to menu
+  *)        echo "Unknown command: $1"; exit 1 ;;
 esac
 
 ########################################
