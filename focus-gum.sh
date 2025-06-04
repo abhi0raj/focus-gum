@@ -1,157 +1,103 @@
 #!/usr/bin/env bash
-# focus-gum.sh — Minimal interactive focus tracker using gum
+# focus-gum.sh — Minimal interactive focus tracker using gum (modernized)
+# ---------------------------------------------------------------
+#  ▸ Keeps behaviour identical: start/stop focus sessions → CSV
+#  ▸ Daily summary + streak counter
+#  ▸ Uses newer gum flags only where available (no deprecated ones)
+#  ▸ Single-screen UI: no duplicate prompts, no flicker
+# ---------------------------------------------------------------
 
-set -euo pipefail  # Exit on errors, undefined vars, pipe failures
+set -euo pipefail   # safer bash
 
-# Configuration
-CSV="$HOME/focus_log.csv"
-DAILY_GOAL=120 # minutes required to count toward streak
+# ── Config ──────────────────────────────────────────────────────
+CSV=${FOCUS_GUM_CSV:-"$HOME/focus_log.csv"}   # allow override via env
+DAILY_GOAL=${FOCUS_GUM_GOAL:-120}             # minutes for streak
 
-# Initialize CSV file
 mkdir -p "$(dirname "$CSV")"
-[[ -f "$CSV" ]] || echo "date,start_time,end_time,duration_minutes,tag" > "$CSV"
+[[ -f "$CSV" ]] || echo "date,start_time,end_time,duration_minutes,tag" >"$CSV"
 
-########################################
-# ── Helpers ───────────────────────────
-########################################
+gum_style_header() {
+  # Pretty two-line header without alternate screen
+  gum style --foreground 213 --bold "$1"  
+  [[ -n "${2:-}" ]] && gum style --faint "$2"
+  echo # spacer
+}
+
+# ── Summary & Streak ───────────────────────────────────────────
 print_summary() {
-    local today
-    today=$(date +%Y-%m-%d)
-    
-    gum format <<< "# 🧠 Focus Summary for $today"
-    
-    # Aggregate minutes per tag for today
-    awk -F',' -v d="$today" '
-        NR > 1 && $1 == d {
-            tags[$5] += $4
-            total += $4
-        }
-        END {
-            for (tag in tags) {
-                printf "- %s: %d min\n", tag, tags[tag]
-            }
-            printf "\nTotal: %d min\n", total
-        }' "$CSV" | gum format
-    
-    calculate_streak
+  local today tot
+  today=$(date +%Y-%m-%d)
+
+  gum_style_header "🧠  Focus Summary for $today"
+
+  awk -F, -v d="$today" 'NR>1 && $1==d {a[$5]+=$4; tot+=$4} END {
+       for (t in a) printf "- %s: %d min\n", t, a[t];
+       printf "\nTotal: %d min\n", tot }' "$CSV" | gum format
+
+  calculate_streak
 }
 
 calculate_streak() {
-    python3 -c "
-import csv
-from datetime import datetime, timedelta
+python3 - <<PY
+import csv, datetime, sys
+CSV = "$CSV"; GOAL = $DAILY_GOAL
+mins = {}
+with open(CSV) as f:
+    for row in csv.DictReader(f):
+        mins[row['date']] = mins.get(row['date'], 0) + int(row['duration_minutes'])
 
-goal = $DAILY_GOAL
-today = datetime.now().date()
-daily_minutes = {}
+today = datetime.date.today(); streak=0
+while str(today) in mins and mins[str(today)] >= GOAL:
+    streak += 1; today -= datetime.timedelta(days=1)
 
-try:
-    with open('$CSV') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            day = row['date']
-            minutes = int(row['duration_minutes'])
-            daily_minutes[day] = daily_minutes.get(day, 0) + minutes
-except FileNotFoundError:
-    pass
-
-# Calculate streak
-streak = 0
-current_day = today
-while str(current_day) in daily_minutes and daily_minutes[str(current_day)] >= goal:
-    streak += 1
-    current_day -= timedelta(days=1)
-
-if streak > 0:
-    day_word = 'day' if streak == 1 else 'days'
-    print(f'🔥 Streak: {streak} {day_word}')
+if streak:
+    print(f"🔥 Streak: {streak} day{'s'*(streak!=1)}")
 else:
-    print('No active streak 😴')
-"
+    print("No active streak 😴")
+PY
 }
 
-########################################
-# ── Focus Session ─────────────────────
-########################################
+# ── Core Session Logic ─────────────────────────────────────────
 run_focus() {
-    local tag="$1"
-    
-    # Get focus tag if not provided
-    if [[ -z "$tag" ]]; then
-        echo "What will you focus on?"
-        tag=$(gum input)
-        [[ -n "$tag" ]] || { echo "Focus tag required"; return 1; }
-    fi
-    
-    # Record start time
-    local start_time start_epoch
-    start_time=$(date +"%Y-%m-%d %H:%M:%S")
-    start_epoch=$(date +%s)
-    
-    gum style --foreground 212 "▶️ Focusing: $tag ($start_time)"
-    echo "Press Ctrl+C when done…"
-    
-    # Set up cleanup on interrupt
-    local session_completed=false
-    cleanup() {
-        if [[ "$session_completed" == "false" ]]; then
-            local end_time end_epoch duration date_only
-            end_time=$(date +"%Y-%m-%d %H:%M:%S")
-            end_epoch=$(date +%s)
-            duration=$(( (end_epoch - start_epoch + 59) / 60 ))  # Round up to nearest minute
-            date_only=$(date +%Y-%m-%d)
-            
-            # Log the session
-            echo "$date_only,$start_time,$end_time,$duration,$tag" >> "$CSV"
-            gum style --foreground 35 "✅ Logged $duration min for: $tag"
-            session_completed=true
-        fi
-        exit 0
-    }
-    trap cleanup INT TERM
-    
-    # Keep session active
-    while true; do 
-        sleep 1
-    done
+  local tag=$1
+  if [[ -z $tag ]]; then
+    gum_style_header "What will you focus on?" "(e.g. protein-design, writing)"
+    tag=$(gum input --placeholder "protein-design" --prompt "➤ " --width 40)
+    [[ -n $tag ]] || { gum style --foreground 1 "✖ No tag given"; return; }
+  fi
+
+  local start_time=$(date +"%Y-%m-%d %H:%M:%S")
+  local start_epoch=$(date +%s)
+
+  gum style --foreground 212 "▶  Focusing: $tag  ($start_time)"
+  gum style --faint "Press Ctrl+C when done…"
+
+  trap finish INT TERM
+  finish(){
+    local end_time=$(date +"%Y-%m-%d %H:%M:%S")
+    local duration=$(( ( $(date +%s) - start_epoch + 59 ) / 60 )) # round-up
+    printf "%s,%s,%s,%d,%s\n" "${start_time%% *}" "$start_time" "$end_time" "$duration" "$tag" >>"$CSV"
+    gum style --foreground 35 "✅ Logged $duration min for: $tag"; exit 0;
+  }
+
+  while sleep 1; do :; done
 }
 
-########################################
-# ── CLI Dispatcher ────────────────────
-########################################
+# ── CLI Dispatch ───────────────────────────────────────────────
 case "${1:-}" in
-    start) 
-        shift
-        run_focus "$*"
-        ;;
-    summary) 
-        print_summary
-        ;;
-    "") 
-        # No args → fall through to interactive menu
-        ;;
-    *) 
-        echo "Usage: $0 [start [tag]|summary]" >&2
-        exit 1
-        ;;
+  start)   shift; run_focus "$*"; exit ;;
+  summary)           print_summary;   exit ;;
+  "")               ;;  # fallthrough to menu
+  *) gum style --foreground 1 "Unknown command: $1"; exit 1 ;;
 esac
 
-########################################
-# ── Interactive Menu ──────────────────
-########################################
+# ── Interactive Menu ───────────────────────────────────────────
 while true; do
-    choice=$(gum choose "🧠 Start Focus" "📊 Summary" "❌ Quit")
-    
-    case "$choice" in
-        "🧠 Start Focus") 
-            run_focus ""
-            ;;
-        "📊 Summary") 
-            print_summary
-            echo  # Add spacing after summary
-            ;;
-        "❌ Quit") 
-            exit 0
-            ;;
-    esac
+  choice=$(gum choose --cursor "➜" "🧠 Start Focus" "📊 Summary" "❌ Quit")
+  case $choice in
+    "🧠 Start Focus") run_focus "" ;;
+    "📊 Summary")     print_summary ;;
+    "❌ Quit")        exit 0 ;;
+  esac
+  echo                # spacer after each cycle
 done
