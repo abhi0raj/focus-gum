@@ -93,11 +93,21 @@ esac
 
 # ── Interactive Menu ───────────────────────────────────────────
 while true; do
-  choice=$(gum choose --cursor "➤" "• Start Focus" "• Summary" "• Quit")
+  choice=$(gum choose \
+    --header "🧠 Focus Session Menu" \
+    --cursor "▶ " \
+    --cursor-prefix "" \
+    --unselected-prefix "  " \
+    --selected-prefix "✓ " \
+    --height 5 \
+    --cursor.foreground="212" \
+    --header.foreground="213" \
+    --header.background="" \
+    "Start Focus" "Summary" "Quit")
   case $choice in
-    "• Start Focus") run_focus "" ;;
-    "• Summary")     print_summary ;;
-    "• Quit")        exit 0 ;;
+    "Start Focus") run_focus "" ;;
+    "Summary")     print_summary ;;
+    "Quit")        exit 0 ;;
   esac
   echo                # spacer after each cycle
 done
