@@ -31,19 +31,15 @@ print_summary() {
   gum_style_header "🧠  Focus Summary for $today"
 
   # Show breakdown by tag and calculate total
-  local summary_lines total_minutes
+  local total_minutes
   
-  # Use awk to create summary and calculate total
-  eval "$(awk -F, -v d="$today" 'NR>1 && $1==d {a[$5]+=$4; tot+=$4} END {
-    printf "summary_lines=\""
-    for (t in a) printf "- %s: %d min\\n", t, a[t];
-    printf "\"\ntotal_minutes=%d\n", tot
-  }' "$CSV")"
+  # Calculate total and get summary
+  total_minutes=$(awk -F, -v d="$today" 'NR>1 && $1==d {a[$5]+=$4; tot+=$4} END {print tot+0}' "$CSV")
   
-  # Display summary if there are any lines
-  if [[ -n "$summary_lines" ]]; then
-    echo "$summary_lines" | gum format
-  fi
+  # Display summary breakdown by tag
+  awk -F, -v d="$today" 'NR>1 && $1==d {a[$5]+=$4} END {
+    for (t in a) printf "- %s: %d min\n", t, a[t]
+  }' "$CSV" | gum format
   
   # Highlight total in green
   if [[ $total_minutes -gt 0 ]]; then
