@@ -17,9 +17,8 @@ mkdir -p "$(dirname "$CSV")"
 [[ -f "$CSV" ]] || echo "date,start_time,end_time,duration_minutes,tag,description" >"$CSV"
 
 gum_style_header() {
-  # Pretty two-line header without alternate screen
-  gum style --foreground 213 --bold "$1"  
-  [[ -n "${2:-}" ]] && gum style --faint "$2"
+  gum style --foreground 51 --bold "$1"   # Cyan
+  [[ -n "${2:-}" ]] && gum style --foreground 117 --faint "$2"  # Light Blue
   echo # spacer
 }
 
@@ -44,10 +43,10 @@ print_summary() {
   # Highlight total in green
   if [[ $total_minutes -gt 0 ]]; then
     echo
-    gum style --foreground 35 --bold "Total: $total_minutes min"
+    gum style --foreground 82 --bold "Total: $total_minutes min"   # Bright Green
   else
     echo
-    gum style --foreground 8 "Total: 0 min"
+    gum style --foreground 117 "Total: 0 min"   # Light Blue
   fi
 
   echo
@@ -75,15 +74,15 @@ show_sessions() {
     
     gum table --file "$temp_table" \
       --border "rounded" \
-      --border.foreground "213" \
-      --header.foreground "213" \
+      --border.foreground "201" \
+      --header.foreground "201" \
       --cell.foreground "254" \
       --print
     
     rm -f "$temp_table"
     echo
   else
-    gum style --foreground 8 "No focus sessions recorded for today"
+    gum style --foreground 117 "No focus sessions recorded for today"   # Light Blue
     echo
   fi
 }
@@ -92,14 +91,14 @@ open_csv() {
   gum_style_header "📄  Opening CSV file" "$CSV"
   
   if [[ ! -f "$CSV" ]]; then
-    gum style --foreground 1 "✖ CSV file not found: $CSV"
+    gum style --foreground 196 "✖ CSV file not found: $CSV"   # Bright Red
     return 1
   fi
   
   # Open with TextEdit on macOS
   if command -v open >/dev/null 2>&1; then
     open -a "TextEdit" "$CSV"
-    gum style --foreground 35 "✅ Opened CSV file in TextEdit"
+    gum style --foreground 82 "✅ Opened CSV file in TextEdit"   # Bright Green
   else
     # Fallback to less for viewing on other systems
     less "$CSV"
@@ -140,8 +139,8 @@ run_focus() {
   local start_time=$(date +"%Y-%m-%d %H:%M:%S")
   local start_epoch=$(date +%s)
 
-  gum style --foreground 212 "▶  Focusing: $tag  ($start_time)"
-  gum style --faint "Press Ctrl+C when done…"
+  gum style --foreground 201 "▶  Focusing: $tag  ($start_time)"
+  gum style --foreground 117 "Press Ctrl+C when done…"
 
   trap finish INT TERM
   finish(){
@@ -149,12 +148,12 @@ run_focus() {
     local duration=$(( ( $(date +%s) - start_epoch + 59 ) / 60 )) # round-up
     
     # Prompt for description
-    gum style --foreground 213 "📝 Add a description for this session:"
+    gum style --foreground 51 "📝 Add a description for this session:"
     local description=$(gum write --placeholder "Quickly reflect: What went well? What distracted you? One thing to improve next time." --header "Session Description" --height 3 --width 60)
     # Escape internal double quotes for CSV
     local description_escaped=${description//\"/\"\"}
     printf "%s,%s,%s,%d,%s,\"%s\"\n" "${start_time%% *}" "$start_time" "$end_time" "$duration" "$tag" "$description_escaped" >>"$CSV"
-    gum style --foreground 35 "✅ Logged $duration min for: $tag"; exit 0;
+    gum style --foreground 82 "✅ Logged $duration min for: $tag"; exit 0;
   }
 
   while sleep 1; do :; done
@@ -176,8 +175,8 @@ while true; do
     --header "🧠 Focus Session Menu" \
     --cursor "➤ " \
     --height 7 \
-    --cursor.foreground="212" \
-    --header.foreground="213" \
+    --cursor.foreground="226" \
+    --header.foreground="51" \
     --header.align="left" \
     --header.background="" \
     "start focus" "summary" "sessions" "open csv" "quit")
