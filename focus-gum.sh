@@ -19,7 +19,7 @@ mkdir -p "$(dirname "$CSV")"
 [[ -f "$CSV" ]] || echo "date,start_time,end_time,duration_minutes,tag,description" >"$CSV"
 
 # ── Theme ───────────────────────────────────────────────────────
-FOCUS_GUM_THEME=${FOCUS_GUM_THEME:-auto}  # auto|light|dark|cyberpunk
+FOCUS_GUM_THEME=${FOCUS_GUM_THEME:-cyberpunk}  # auto|light|dark|cyberpunk (default)
 
 set_theme_colors() {
   local mode="$1"
@@ -106,9 +106,18 @@ EOF
 }
 
 gum_style_header() {
-  gum style --foreground "$COLOR_HEADER" --bold "$1"
-  [[ -n "${2:-}" ]] && gum style --foreground "$COLOR_MUTED" --faint "$2"
-  echo # spacer
+  local title="$1"
+  local subtitle="${2:-}"
+  local block=$(gum style \
+    --foreground "$COLOR_HEADER" \
+    --border "rounded" \
+    --border-foreground "$COLOR_BORDER" \
+    --margin "0 0" \
+    --padding "0 1" \
+    --bold "$title")
+  echo "$block"
+  [[ -n "$subtitle" ]] && gum style --foreground "$COLOR_MUTED" --faint "$subtitle"
+  echo
 }
 
 # ── Summary & Streak ───────────────────────────────────────────
@@ -225,7 +234,9 @@ run_focus() {
   local tag=$1
   if [[ -z $tag ]]; then
     gum_style_header "What will you focus on?" "(e.g. protein-design, writing)"
-    tag=$(gum input --placeholder "coding" --prompt "➤ " --width 40)
+    tag=$(gum input --placeholder "coding" --prompt "• " --width 40 \
+      --cursor.foreground "$COLOR_ACCENT" \
+      --prompt.foreground "$COLOR_HEADER")
     [[ -n $tag ]] || { gum style --foreground 1 "✖ No tag given"; return; }
   fi
 
@@ -290,10 +301,12 @@ esac
 while true; do
   choice=$(gum choose \
     --header "🧠 Focus Session Menu" \
-    --cursor "➤ " \
+    --cursor "• " \
     --height 7 \
     --cursor.foreground="$COLOR_ACCENT" \
     --header.foreground="$COLOR_HEADER" \
+    --border "rounded" \
+    --border.foreground "$COLOR_BORDER" \
     --header.align="left" \
     --header.background="" \
     "start focus" "summary" "sessions" "open csv" "quit")
