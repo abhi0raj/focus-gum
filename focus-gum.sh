@@ -14,6 +14,7 @@ VERSION="0.3.1"
 # ── Config ──────────────────────────────────────────────────────
 CSV=${FOCUS_GUM_CSV:-"$HOME/focus_log.csv"}   # allow override via env
 DAILY_GOAL=${FOCUS_GUM_GOAL:-120}             # minutes for streak
+FOCUS_GUM_MINIMAL=${FOCUS_GUM_MINIMAL:-1}     # 1=minimal headers, no emojis
 
 mkdir -p "$(dirname "$CSV")"
 [[ -f "$CSV" ]] || echo "date,start_time,end_time,duration_minutes,tag,description" >"$CSV"
@@ -114,19 +115,29 @@ EOF
 gum_style_header() {
   local title="$1"
   local subtitle="${2:-}"
-  if [[ "$GUM_HAS_STYLE_BORDER" -eq 1 ]]; then
-    local block=$(gum style \
-      --foreground "$COLOR_HEADER" \
-      --border "rounded" \
-      --border-foreground "$COLOR_BORDER" \
-      --margin "0 0" \
-      --padding "0 1" \
-      --bold "$title")
-    echo "$block"
+  if [[ "$FOCUS_GUM_MINIMAL" -eq 1 ]]; then
+    # Single-line header, optional faint subtitle inline
+    if [[ -n "$subtitle" ]]; then
+      gum style --foreground "$COLOR_HEADER" --bold "$title"; \
+      gum style --foreground "$COLOR_MUTED" --faint "  ·  $subtitle"
+    else
+      gum style --foreground "$COLOR_HEADER" --bold "$title"
+    fi
   else
-    gum style --foreground "$COLOR_HEADER" --bold "$title"
+    if [[ "$GUM_HAS_STYLE_BORDER" -eq 1 ]]; then
+      local block=$(gum style \
+        --foreground "$COLOR_HEADER" \
+        --border "rounded" \
+        --border-foreground "$COLOR_BORDER" \
+        --margin "0 0" \
+        --padding "0 1" \
+        --bold "$title")
+      echo "$block"
+    else
+      gum style --foreground "$COLOR_HEADER" --bold "$title"
+      [[ -n "$subtitle" ]] && gum style --foreground "$COLOR_MUTED" --faint "$subtitle"
+    fi
   fi
-  [[ -n "$subtitle" ]] && gum style --foreground "$COLOR_MUTED" --faint "$subtitle"
   echo
 }
 
@@ -135,7 +146,7 @@ print_summary() {
   local today tot
   today=$(date +%Y-%m-%d)
 
-  gum_style_header "🧠  Focus Summary for $today"
+  gum_style_header "Summary" "$today"
 
   # Show breakdown by tag and calculate total
   local total_minutes
@@ -144,17 +155,31 @@ print_summary() {
   total_minutes=$(awk -F, -v d="$today" 'NR>1 && $1==d {a[$5]+=$4; tot+=$4} END {print tot+0}' "$CSV")
   
   # Display summary breakdown by tag
-  awk -F, -v d="$today" 'NR>1 && $1==d {a[$5]+=$4} END {
-    for (t in a) printf "- %s: %d min\n", t, a[t]
-  }' "$CSV" | gum format
+  if [[ "$FOCUS_GUM_MINIMAL" -eq 1 ]]; then
+    awk -F, -v d="$today" 'NR>1 && $1==d {a[$5]+=$4} END {
+      first=1;
+      for (t in a) {
+        if (!first) printf ", "; first=0; printf "%s %dmin", t, a[t]
+      }
+      if (!first) printf "\n"
+    }' "$CSV"
+  else
+    awk -F, -v d="$today" 'NR>1 && $1==d {a[$5]+=$4} END {
+      for (t in a) printf "- %s: %d min\n", t, a[t]
+    }' "$CSV" | gum format
+  fi
   
   # Highlight total
   if [[ $total_minutes -gt 0 ]]; then
     echo
-    gum style --foreground "$COLOR_SUCCESS" --bold "Total: $total_minutes min"
+    if [[ "$FOCUS_GUM_MINIMAL" -eq 1 ]]; then
+      gum style --foreground "$COLOR_SUCCESS" --bold "Total $total_minutes min"
+    else
+      gum style --foreground "$COLOR_SUCCESS" --bold "Total: $total_minutes min"
+    fi
   else
     echo
-    gum style --foreground "$COLOR_MUTED" "Total: 0 min"
+    gum style --foreground "$COLOR_MUTED" "Total 0 min"
   fi
 
   echo
@@ -165,7 +190,7 @@ show_sessions() {
   local today
   today=$(date +%Y-%m-%d)
   
-  gum_style_header "📋  Today's Focus Sessions" "$today"
+  gum_style_header "Sessions" "$today"
   
   # Calculate total minutes for today
   local total_minutes
@@ -202,7 +227,7 @@ show_sessions() {
 }
 
 open_csv() {
-  gum_style_header "📄  Opening CSV file" "$CSV"
+  gum_style_header "Open CSV" "$CSV"
   
   if [[ ! -f "$CSV" ]]; then
     gum style --foreground "$COLOR_ERROR" "✖ CSV file not found: $CSV"
@@ -212,7 +237,7 @@ open_csv() {
   # Open with TextEdit on macOS
   if command -v open >/dev/null 2>&1; then
     open -a "TextEdit" "$CSV"
-    gum style --foreground "$COLOR_SUCCESS" "✅ Opened CSV file in TextEdit"
+    gum style --foreground "$COLOR_SUCCESS" "Opened CSV in TextEdit"
   else
     # Fallback to less for viewing on other systems
     less "$CSV"
@@ -239,9 +264,9 @@ while str(today) in mins and mins[str(today)] >= GOAL:
     streak += 1; today -= datetime.timedelta(days=1)
 
 if streak:
-    print(f"🔥 Streak: {streak} day{'s'*(streak!=1)}")
+    print(f"Streak: {streak} day{'s'*(streak!=1)}")
 else:
-    print("No active streak 😴")
+    print("No active streak")
 PY
 }
 
@@ -249,8 +274,8 @@ PY
 run_focus() {
   local tag=$1
   if [[ -z $tag ]]; then
-    gum_style_header "What will you focus on?" "(e.g. protein-design, writing)"
-    tag=$(gum input --placeholder "coding" --prompt "• " --width 40 \
+    gum_style_header "What to focus on" "(e.g. protein-design, writing)"
+    tag=$(gum input --placeholder "tag" --prompt ". " --width 40 \
       --cursor.foreground "$COLOR_ACCENT" \
       --prompt.foreground "$COLOR_HEADER")
     [[ -n $tag ]] || { gum style --foreground 1 "✖ No tag given"; return; }
@@ -259,14 +284,14 @@ run_focus() {
   local start_time=$(date +"%Y-%m-%d %H:%M:%S")
   local start_epoch=$(date +%s)
 
-  gum style --foreground "$COLOR_ACCENT" "▶  Focusing: $tag  ($start_time)"
+  gum style --foreground "$COLOR_ACCENT" "> Focusing: $tag  ($start_time)"
 
   # Live single-line timer overlay
   show_timer() {
     while true; do
       local now=$(date +%s)
       local elapsed=$(( now - start_epoch ))
-      printf "\r⏱  %02d:%02d elapsed " $((elapsed/60)) $((elapsed%60))
+      printf "\r.. %02d:%02d elapsed " $((elapsed/60)) $((elapsed%60))
       sleep 1
     done
   }
@@ -281,8 +306,13 @@ run_focus() {
     local duration=$(( ( $(date +%s) - start_epoch + 59 ) / 60 )) # round-up
     
     # Prompt for description
-    gum style --foreground "$COLOR_HEADER" "📝 Add a description for this session:"
-    local description=$(gum write --placeholder "Quickly reflect: What went well? What distracted you? One thing to improve next time." --header "Session Description" --height 3 --width 60)
+    if [[ "$FOCUS_GUM_MINIMAL" -eq 1 ]]; then
+      gum style --foreground "$COLOR_MUTED" --faint "description (optional):"
+      local description=$(gum write --placeholder "notes" --height 3 --width 60)
+    else
+      gum style --foreground "$COLOR_HEADER" "Add a description for this session:"
+      local description=$(gum write --placeholder "Quickly reflect: What went well? What distracted you? One thing to improve next time." --header "Session Description" --height 3 --width 60)
+    fi
     # Sanitize tag (avoid commas/newlines that break simple CSV parsing)
     local tag_sane=${tag//$'\r'/ }
     tag_sane=${tag_sane//$'\n'/ }
@@ -295,7 +325,7 @@ run_focus() {
     local description_escaped=${description_flat//\"/\"\"}
 
     printf "%s,%s,%s,%d,%s,\"%s\"\n" "${start_time%% *}" "$start_time" "$end_time" "$duration" "$tag_sane" "$description_escaped" >>"$CSV"
-    gum style --foreground "$COLOR_SUCCESS" "✅ Logged $duration min for: $tag"; exit 0;
+    gum style --foreground "$COLOR_SUCCESS" "Logged $duration min for: $tag"; exit 0;
   }
 
   while sleep 1; do :; done
@@ -316,8 +346,8 @@ esac
 # ── Interactive Menu ───────────────────────────────────────────
 while true; do
   choice=$(gum choose \
-    --header "🧠 Focus Session Menu" \
-    --cursor "• " \
+    --header "Menu" \
+    --cursor ". " \
     --height 7 \
     --cursor.foreground="$COLOR_ACCENT" \
     --header.foreground="$COLOR_HEADER" \
