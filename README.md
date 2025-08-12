@@ -11,6 +11,8 @@ Designed for “monk-mode” deep-work rituals inspired by Cal Newport & James C
 - **Streak tracker** – counts consecutive days ≥ `DAILY_GOAL` minutes.
 - **One-line install** – copy the script to `~/bin` & add an alias.
 - **Zero dependencies** beyond Bash + gum (Python 3 ships on macOS for the streak calc).
+- **Help & version flags**: `--help`, `--version`.
+- **Env overrides**: `FOCUS_GUM_CSV`, `FOCUS_GUM_GOAL`.
 
 ---
 
@@ -33,6 +35,8 @@ source ~/.zshrc
 focus start <tag>   # quick start (e.g. focus start writing)
 focus summary       # today’s totals + streak
 focus               # interactive menu
+focus --help        # flags & environment variables
+focus --version
 ```
 
 **Example session**
@@ -52,6 +56,13 @@ Edit the top of `focus-gum.sh` to tweak:
 ```bash
 CSV="$HOME/focus_log.csv"   # change log location
 DAILY_GOAL=120              # minutes required for streak
+```
+
+Or use environment variables:
+
+```bash
+export FOCUS_GUM_CSV="$HOME/Documents/focus.csv"
+export FOCUS_GUM_GOAL=150
 ```
 
 ---

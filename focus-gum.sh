@@ -9,12 +9,46 @@
 
 set -euo pipefail   # safer bash
 
+VERSION="0.2.0"
+
 # ── Config ──────────────────────────────────────────────────────
 CSV=${FOCUS_GUM_CSV:-"$HOME/focus_log.csv"}   # allow override via env
 DAILY_GOAL=${FOCUS_GUM_GOAL:-120}             # minutes for streak
 
 mkdir -p "$(dirname "$CSV")"
 [[ -f "$CSV" ]] || echo "date,start_time,end_time,duration_minutes,tag,description" >"$CSV"
+
+# ── Dependencies ────────────────────────────────────────────────
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "Missing dependency: $1" >&2
+    if [[ "$1" == "gum" ]]; then
+      echo "Install gum: brew install charmbracelet/tap/gum" >&2
+    fi
+    exit 1
+  }
+}
+
+require_cmd gum
+# Python is optional; only needed for streak calculation. We warn lazily there.
+
+print_help() {
+  cat <<EOF
+focus-gum $VERSION
+
+Usage:
+  focus-gum.sh start [tag]   Start a focus session (Ctrl+C to stop)
+  focus-gum.sh summary       Show today's summary and streak
+  focus-gum.sh sessions      Show today's session table
+  focus-gum.sh open_csv      Open the CSV file
+  focus-gum.sh -h|--help     Show this help
+  focus-gum.sh -v|--version  Show version
+
+Environment:
+  FOCUS_GUM_CSV   Path to CSV file (default: \"$HOME/focus_log.csv\")
+  FOCUS_GUM_GOAL  Daily minutes target for streak (default: 120)
+EOF
+}
 
 gum_style_header() {
   gum style --foreground 51 --bold "$1"   # Cyan
@@ -106,7 +140,11 @@ open_csv() {
 }
 
 calculate_streak() {
-python3 - <<PY
+  if ! command -v python3 >/dev/null 2>&1; then
+    gum style --foreground 117 "(Install Python 3 to enable streak calculation)"
+    return 0
+  fi
+  python3 - <<PY
 import csv, datetime, sys
 CSV = "$CSV"; GOAL = $DAILY_GOAL
 mins = {}
@@ -150,9 +188,18 @@ run_focus() {
     # Prompt for description
     gum style --foreground 51 "📝 Add a description for this session:"
     local description=$(gum write --placeholder "Quickly reflect: What went well? What distracted you? One thing to improve next time." --header "Session Description" --height 3 --width 60)
-    # Escape internal double quotes for CSV
-    local description_escaped=${description//\"/\"\"}
-    printf "%s,%s,%s,%d,%s,\"%s\"\n" "${start_time%% *}" "$start_time" "$end_time" "$duration" "$tag" "$description_escaped" >>"$CSV"
+    # Sanitize tag (avoid commas/newlines that break simple CSV parsing)
+    local tag_sane=${tag//$'\r'/ }
+    tag_sane=${tag_sane//$'\n'/ }
+    tag_sane=${tag_sane//,/;}
+    tag_sane=${tag_sane//\"/\'}
+
+    # Flatten description newlines and escape quotes
+    local description_flat=${description//$'\r'/ }
+    description_flat=${description_flat//$'\n'/ }
+    local description_escaped=${description_flat//\"/\"\"}
+
+    printf "%s,%s,%s,%d,%s,\"%s\"\n" "${start_time%% *}" "$start_time" "$end_time" "$duration" "$tag_sane" "$description_escaped" >>"$CSV"
     gum style --foreground 82 "✅ Logged $duration min for: $tag"; exit 0;
   }
 
@@ -165,6 +212,8 @@ case "${1:-}" in
   summary)           print_summary;   exit ;;
   sessions)          show_sessions;   exit ;;
   open_csv)          open_csv;        exit ;;
+  -h|--help)         print_help;      exit ;;
+  -v|--version)      echo "$VERSION"; exit ;;
   "")               ;;  # fallthrough to menu
   *) gum style --foreground 1 "Unknown command: $1"; exit 1 ;;
 esac
