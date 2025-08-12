@@ -9,7 +9,7 @@
 
 set -euo pipefail   # safer bash
 
-VERSION="0.2.0"
+VERSION="0.3.0"
 
 # ── Config ──────────────────────────────────────────────────────
 CSV=${FOCUS_GUM_CSV:-"$HOME/focus_log.csv"}   # allow override via env
