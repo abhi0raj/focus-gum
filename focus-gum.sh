@@ -9,7 +9,7 @@
 
 set -euo pipefail   # safer bash
 
-VERSION="0.3.0"
+VERSION="0.3.1"
 
 # ── Config ──────────────────────────────────────────────────────
 CSV=${FOCUS_GUM_CSV:-"$HOME/focus_log.csv"}   # allow override via env
@@ -18,33 +18,47 @@ DAILY_GOAL=${FOCUS_GUM_GOAL:-120}             # minutes for streak
 mkdir -p "$(dirname "$CSV")"
 [[ -f "$CSV" ]] || echo "date,start_time,end_time,duration_minutes,tag,description" >"$CSV"
 
-# ── Theme (Light/Dark) ──────────────────────────────────────────
-FOCUS_GUM_THEME=${FOCUS_GUM_THEME:-auto}  # auto|light|dark
+# ── Theme ───────────────────────────────────────────────────────
+FOCUS_GUM_THEME=${FOCUS_GUM_THEME:-auto}  # auto|light|dark|cyberpunk
 
 set_theme_colors() {
   local mode="$1"
-  if [[ "$mode" == "dark" ]]; then
-    COLOR_TEXT="#E6E6E6"
-    COLOR_HEADER="#57C7FF"     # cyan
-    COLOR_MUTED="#8BE9FD"      # light cyan
-    COLOR_ACCENT="#FFD866"     # yellow
-    COLOR_SUCCESS="#50FA7B"    # green
-    COLOR_ERROR="#FF5555"      # red
-    COLOR_BORDER="#BD93F9"     # purple
-  else
-    COLOR_TEXT="#2D2D2D"
-    COLOR_HEADER="#005CC5"     # blue
-    COLOR_MUTED="#6A737D"      # gray
-    COLOR_ACCENT="#9A6700"     # amber
-    COLOR_SUCCESS="#28A745"    # green
-    COLOR_ERROR="#D73A49"      # red
-    COLOR_BORDER="#0366D6"     # blue
-  fi
+  case "$mode" in
+    cyberpunk)
+      COLOR_TEXT="#E6E6E6"
+      COLOR_HEADER="#FF6FFF"    # neon magenta
+      COLOR_MUTED="#7DF9FF"     # electric cyan
+      COLOR_ACCENT="#39FF14"    # neon green
+      COLOR_SUCCESS="#39FF14"   # neon green
+      COLOR_ERROR="#FF3366"     # neon pink-red
+      COLOR_BORDER="#00E5FF"    # bright cyan
+      ;;
+    dark)
+      COLOR_TEXT="#E6E6E6"
+      COLOR_HEADER="#57C7FF"     # cyan
+      COLOR_MUTED="#8BE9FD"      # light cyan
+      COLOR_ACCENT="#FFD866"     # yellow
+      COLOR_SUCCESS="#50FA7B"    # green
+      COLOR_ERROR="#FF5555"      # red
+      COLOR_BORDER="#BD93F9"     # purple
+      ;;
+    *) # light
+      COLOR_TEXT="#2D2D2D"
+      COLOR_HEADER="#005CC5"     # blue
+      COLOR_MUTED="#6A737D"      # gray
+      COLOR_ACCENT="#9A6700"     # amber
+      COLOR_SUCCESS="#28A745"    # green
+      COLOR_ERROR="#D73A49"      # red
+      COLOR_BORDER="#0366D6"     # blue
+      ;;
+  esac
 }
 
 detect_theme_mode() {
   local mode="light"
-  if [[ "$FOCUS_GUM_THEME" == "dark" ]]; then
+  if [[ "$FOCUS_GUM_THEME" == "cyberpunk" ]]; then
+    mode="cyberpunk"
+  elif [[ "$FOCUS_GUM_THEME" == "dark" ]]; then
     mode="dark"
   elif [[ "$FOCUS_GUM_THEME" == "auto" ]]; then
     if command -v defaults >/dev/null 2>&1; then
@@ -219,14 +233,13 @@ run_focus() {
   local start_epoch=$(date +%s)
 
   gum style --foreground "$COLOR_ACCENT" "▶  Focusing: $tag  ($start_time)"
-  gum style --foreground "$COLOR_MUTED" "Press Ctrl+C when done…"
 
   # Live single-line timer overlay
   show_timer() {
     while true; do
       local now=$(date +%s)
       local elapsed=$(( now - start_epoch ))
-      printf "\r⏱  %02d:%02d elapsed — %s (Ctrl+C to stop) " $((elapsed/60)) $((elapsed%60)) "$tag"
+      printf "\r⏱  %02d:%02d elapsed " $((elapsed/60)) $((elapsed%60))
       sleep 1
     done
   }
@@ -234,9 +247,9 @@ run_focus() {
 
   trap finish INT TERM
   finish(){
-    # stop timer line and move to next line
+    # stop timer line (clear) and move to next line
     kill "$timer_pid" 2>/dev/null || true
-    printf "\n"
+    printf "\r%*s\r\n" 40 ""
     local end_time=$(date +"%Y-%m-%d %H:%M:%S")
     local duration=$(( ( $(date +%s) - start_epoch + 59 ) / 60 )) # round-up
     
