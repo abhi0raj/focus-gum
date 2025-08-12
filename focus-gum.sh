@@ -87,6 +87,12 @@ require_cmd() {
 require_cmd gum
 # Python is optional; only needed for streak calculation. We warn lazily there.
 
+# Detect gum feature support (older versions may lack some flags)
+GUM_HAS_STYLE_BORDER=0
+GUM_HAS_TABLE_BORDER=0
+if gum style --help 2>/dev/null | grep -q -- "--border"; then GUM_HAS_STYLE_BORDER=1; fi
+if gum table --help 2>/dev/null | grep -q -- "--border"; then GUM_HAS_TABLE_BORDER=1; fi
+
 print_help() {
   cat <<EOF
 focus-gum $VERSION
@@ -108,14 +114,18 @@ EOF
 gum_style_header() {
   local title="$1"
   local subtitle="${2:-}"
-  local block=$(gum style \
-    --foreground "$COLOR_HEADER" \
-    --border "rounded" \
-    --border-foreground "$COLOR_BORDER" \
-    --margin "0 0" \
-    --padding "0 1" \
-    --bold "$title")
-  echo "$block"
+  if [[ "$GUM_HAS_STYLE_BORDER" -eq 1 ]]; then
+    local block=$(gum style \
+      --foreground "$COLOR_HEADER" \
+      --border "rounded" \
+      --border-foreground "$COLOR_BORDER" \
+      --margin "0 0" \
+      --padding "0 1" \
+      --bold "$title")
+    echo "$block"
+  else
+    gum style --foreground "$COLOR_HEADER" --bold "$title"
+  fi
   [[ -n "$subtitle" ]] && gum style --foreground "$COLOR_MUTED" --faint "$subtitle"
   echo
 }
@@ -170,12 +180,18 @@ show_sessions() {
       printf "%s,%s,%d,%s\n", $2, $3, $4, $5
     }' "$CSV" >> "$temp_table"
     
-    gum table --file "$temp_table" \
-      --border "rounded" \
-      --border.foreground "$COLOR_BORDER" \
-      --header.foreground "$COLOR_HEADER" \
-      --cell.foreground "$COLOR_TEXT" \
-      --print
+    if [[ "$GUM_HAS_TABLE_BORDER" -eq 1 ]]; then
+      gum table --file "$temp_table" \
+        --border "rounded" \
+        --border.foreground "$COLOR_BORDER" \
+        --header.foreground "$COLOR_HEADER" \
+        --cell.foreground "$COLOR_TEXT" \
+        --print
+    else
+      gum table --file "$temp_table" \
+        --header.foreground "$COLOR_HEADER" \
+        --print
+    fi
     
     rm -f "$temp_table"
     echo
@@ -305,8 +321,6 @@ while true; do
     --height 7 \
     --cursor.foreground="$COLOR_ACCENT" \
     --header.foreground="$COLOR_HEADER" \
-    --border "rounded" \
-    --border.foreground "$COLOR_BORDER" \
     --header.align="left" \
     --header.background="" \
     "start focus" "summary" "sessions" "open csv" "quit")
