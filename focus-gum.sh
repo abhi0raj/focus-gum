@@ -18,6 +18,47 @@ DAILY_GOAL=${FOCUS_GUM_GOAL:-120}             # minutes for streak
 mkdir -p "$(dirname "$CSV")"
 [[ -f "$CSV" ]] || echo "date,start_time,end_time,duration_minutes,tag,description" >"$CSV"
 
+# ── Theme (Light/Dark) ──────────────────────────────────────────
+FOCUS_GUM_THEME=${FOCUS_GUM_THEME:-auto}  # auto|light|dark
+
+set_theme_colors() {
+  local mode="$1"
+  if [[ "$mode" == "dark" ]]; then
+    COLOR_TEXT="#E6E6E6"
+    COLOR_HEADER="#57C7FF"     # cyan
+    COLOR_MUTED="#8BE9FD"      # light cyan
+    COLOR_ACCENT="#FFD866"     # yellow
+    COLOR_SUCCESS="#50FA7B"    # green
+    COLOR_ERROR="#FF5555"      # red
+    COLOR_BORDER="#BD93F9"     # purple
+  else
+    COLOR_TEXT="#2D2D2D"
+    COLOR_HEADER="#005CC5"     # blue
+    COLOR_MUTED="#6A737D"      # gray
+    COLOR_ACCENT="#9A6700"     # amber
+    COLOR_SUCCESS="#28A745"    # green
+    COLOR_ERROR="#D73A49"      # red
+    COLOR_BORDER="#0366D6"     # blue
+  fi
+}
+
+detect_theme_mode() {
+  local mode="light"
+  if [[ "$FOCUS_GUM_THEME" == "dark" ]]; then
+    mode="dark"
+  elif [[ "$FOCUS_GUM_THEME" == "auto" ]]; then
+    if command -v defaults >/dev/null 2>&1; then
+      if defaults read -g AppleInterfaceStyle 2>/dev/null | grep -qi "Dark"; then
+        mode="dark"
+      fi
+    fi
+  fi
+  echo "$mode"
+}
+
+THEME_MODE=$(detect_theme_mode)
+set_theme_colors "$THEME_MODE"
+
 # ── Dependencies ────────────────────────────────────────────────
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -51,8 +92,8 @@ EOF
 }
 
 gum_style_header() {
-  gum style --foreground 51 --bold "$1"   # Cyan
-  [[ -n "${2:-}" ]] && gum style --foreground 117 --faint "$2"  # Light Blue
+  gum style --foreground "$COLOR_HEADER" --bold "$1"
+  [[ -n "${2:-}" ]] && gum style --foreground "$COLOR_MUTED" --faint "$2"
   echo # spacer
 }
 
@@ -74,13 +115,13 @@ print_summary() {
     for (t in a) printf "- %s: %d min\n", t, a[t]
   }' "$CSV" | gum format
   
-  # Highlight total in green
+  # Highlight total
   if [[ $total_minutes -gt 0 ]]; then
     echo
-    gum style --foreground 82 --bold "Total: $total_minutes min"   # Bright Green
+    gum style --foreground "$COLOR_SUCCESS" --bold "Total: $total_minutes min"
   else
     echo
-    gum style --foreground 117 "Total: 0 min"   # Light Blue
+    gum style --foreground "$COLOR_MUTED" "Total: 0 min"
   fi
 
   echo
@@ -108,15 +149,15 @@ show_sessions() {
     
     gum table --file "$temp_table" \
       --border "rounded" \
-      --border.foreground "201" \
-      --header.foreground "201" \
-      --cell.foreground "254" \
+      --border.foreground "$COLOR_BORDER" \
+      --header.foreground "$COLOR_HEADER" \
+      --cell.foreground "$COLOR_TEXT" \
       --print
     
     rm -f "$temp_table"
     echo
   else
-    gum style --foreground 117 "No focus sessions recorded for today"   # Light Blue
+    gum style --foreground "$COLOR_MUTED" "No focus sessions recorded for today"
     echo
   fi
 }
@@ -125,14 +166,14 @@ open_csv() {
   gum_style_header "📄  Opening CSV file" "$CSV"
   
   if [[ ! -f "$CSV" ]]; then
-    gum style --foreground 196 "✖ CSV file not found: $CSV"   # Bright Red
+    gum style --foreground "$COLOR_ERROR" "✖ CSV file not found: $CSV"
     return 1
   fi
   
   # Open with TextEdit on macOS
   if command -v open >/dev/null 2>&1; then
     open -a "TextEdit" "$CSV"
-    gum style --foreground 82 "✅ Opened CSV file in TextEdit"   # Bright Green
+    gum style --foreground "$COLOR_SUCCESS" "✅ Opened CSV file in TextEdit"
   else
     # Fallback to less for viewing on other systems
     less "$CSV"
@@ -141,7 +182,7 @@ open_csv() {
 
 calculate_streak() {
   if ! command -v python3 >/dev/null 2>&1; then
-    gum style --foreground 117 "(Install Python 3 to enable streak calculation)"
+    gum style --foreground "$COLOR_MUTED" "(Install Python 3 to enable streak calculation)"
     return 0
   fi
   python3 - <<PY
@@ -177,16 +218,30 @@ run_focus() {
   local start_time=$(date +"%Y-%m-%d %H:%M:%S")
   local start_epoch=$(date +%s)
 
-  gum style --foreground 201 "▶  Focusing: $tag  ($start_time)"
-  gum style --foreground 117 "Press Ctrl+C when done…"
+  gum style --foreground "$COLOR_ACCENT" "▶  Focusing: $tag  ($start_time)"
+  gum style --foreground "$COLOR_MUTED" "Press Ctrl+C when done…"
+
+  # Live single-line timer overlay
+  show_timer() {
+    while true; do
+      local now=$(date +%s)
+      local elapsed=$(( now - start_epoch ))
+      printf "\r⏱  %02d:%02d elapsed — %s (Ctrl+C to stop) " $((elapsed/60)) $((elapsed%60)) "$tag"
+      sleep 1
+    done
+  }
+  show_timer & timer_pid=$!
 
   trap finish INT TERM
   finish(){
+    # stop timer line and move to next line
+    kill "$timer_pid" 2>/dev/null || true
+    printf "\n"
     local end_time=$(date +"%Y-%m-%d %H:%M:%S")
     local duration=$(( ( $(date +%s) - start_epoch + 59 ) / 60 )) # round-up
     
     # Prompt for description
-    gum style --foreground 51 "📝 Add a description for this session:"
+    gum style --foreground "$COLOR_HEADER" "📝 Add a description for this session:"
     local description=$(gum write --placeholder "Quickly reflect: What went well? What distracted you? One thing to improve next time." --header "Session Description" --height 3 --width 60)
     # Sanitize tag (avoid commas/newlines that break simple CSV parsing)
     local tag_sane=${tag//$'\r'/ }
@@ -200,7 +255,7 @@ run_focus() {
     local description_escaped=${description_flat//\"/\"\"}
 
     printf "%s,%s,%s,%d,%s,\"%s\"\n" "${start_time%% *}" "$start_time" "$end_time" "$duration" "$tag_sane" "$description_escaped" >>"$CSV"
-    gum style --foreground 82 "✅ Logged $duration min for: $tag"; exit 0;
+    gum style --foreground "$COLOR_SUCCESS" "✅ Logged $duration min for: $tag"; exit 0;
   }
 
   while sleep 1; do :; done
@@ -215,7 +270,7 @@ case "${1:-}" in
   -h|--help)         print_help;      exit ;;
   -v|--version)      echo "$VERSION"; exit ;;
   "")               ;;  # fallthrough to menu
-  *) gum style --foreground 1 "Unknown command: $1"; exit 1 ;;
+  *) gum style --foreground "$COLOR_ERROR" "Unknown command: $1"; exit 1 ;;
 esac
 
 # ── Interactive Menu ───────────────────────────────────────────
@@ -224,8 +279,8 @@ while true; do
     --header "🧠 Focus Session Menu" \
     --cursor "➤ " \
     --height 7 \
-    --cursor.foreground="226" \
-    --header.foreground="51" \
+    --cursor.foreground="$COLOR_ACCENT" \
+    --header.foreground="$COLOR_HEADER" \
     --header.align="left" \
     --header.background="" \
     "start focus" "summary" "sessions" "open csv" "quit")

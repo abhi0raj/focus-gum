@@ -13,6 +13,8 @@ Designed for “monk-mode” deep-work rituals inspired by Cal Newport & James C
 - **Zero dependencies** beyond Bash + gum (Python 3 ships on macOS for the streak calc).
 - **Help & version flags**: `--help`, `--version`.
 - **Env overrides**: `FOCUS_GUM_CSV`, `FOCUS_GUM_GOAL`.
+- **Adaptive theming**: honors macOS appearance (auto) or `FOCUS_GUM_THEME=light|dark`.
+- **Live timer overlay** during focus sessions (single-line, no spam).
 
 ---
 
@@ -63,6 +65,7 @@ Or use environment variables:
 ```bash
 export FOCUS_GUM_CSV="$HOME/Documents/focus.csv"
 export FOCUS_GUM_GOAL=150
+export FOCUS_GUM_THEME=dark    # light | dark | auto (default)
 ```
 
 ---
